@@ -1,0 +1,1213 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Road Fighter - Hand Landmark</title>
+    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js" crossorigin="anonymous"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/control_utils/control_utils.js" crossorigin="anonymous"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/drawing_utils/drawing_utils.js" crossorigin="anonymous"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/hands/hands.js" crossorigin="anonymous"></script>
+	<!-- Background Music -->
+	<audio id="backgroundMusic" loop>
+		<source src="music/8bit.mp3" type="audio/mpeg">
+		Browser Anda tidak mendukung audio.
+	</audio>
+    <style>
+		.warning-text {
+			color: #FF6B6B !important;
+			font-size: 0.9em;
+			animation: blink 1s infinite;
+		}
+
+		@keyframes blink {
+			0%, 50% { opacity: 1; }
+			51%, 100% { opacity: 0.5; }
+		}
+		/* Pop-up overlay */
+		.game-overlay {
+			position: fixed;
+			top: 0;
+			left: 0;
+			width: 100%;
+			height: 100%;
+			background-color: rgba(0, 128, 0, 0.5);
+			display: none;
+			justify-content: center;
+			align-items: center;
+			z-index: 1000;
+		}
+
+		.game-popup {
+			background: white;
+			border-radius: 15px;
+			padding: 30px;
+			text-align: center;
+			box-shadow: 0 20px 40px rgba(0, 0, 0, 0.3);
+			max-width: 300px;
+			width: 90%;
+		}
+
+		.game-popup h2 {
+			color: #e74c3c;
+			margin-bottom: 20px;
+			font-size: 24px;
+		}
+
+		.game-popup p {
+			color: #333;
+			margin-bottom: 15px;
+			font-size: 16px;
+		}
+
+		.popup-button {
+			background: linear-gradient(45deg, #27ae60, #2ecc71);
+			color: white;
+			border: none;
+			padding: 12px 24px;
+			border-radius: 25px;
+			font-size: 16px;
+			cursor: pointer;
+			transition: all 0.3s ease;
+			box-shadow: 0 5px 15px rgba(0, 0, 0, 0.2);
+		}
+
+		.popup-button:hover {
+			transform: translateY(-2px);
+			box-shadow: 0 8px 20px rgba(0, 0, 0, 0.3);
+		}
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: Arial, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            background: rgba(255, 255, 255, 0.95);
+            border-radius: 20px;
+            padding: 20px;
+            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.1);
+        }
+
+        h1 {
+            text-align: center;
+            color: #333;
+            margin-bottom: 30px;
+            font-size: 2.5em;
+            text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.1);
+        }
+
+        .main-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 30px;
+            min-height: 700px;
+        }
+
+        .camera-section {
+            background: #000;
+            border-radius: 15px;
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .camera-container {
+            position: relative;
+            width: 100%;
+            max-width: 640px;
+            height: 480px;
+            border-radius: 10px;
+            overflow: hidden;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
+        }
+
+        #videoElement {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+			transform: scaleX(-1)
+        }
+
+        #canvasElement {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+        }
+
+        .info-section {
+            background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+            border-radius: 15px;
+            padding: 20px;
+            color: white;
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+        }
+
+        .info-cards-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 10px;
+            margin-bottom: 20px;
+        }
+
+        .info-card {
+            background: rgba(255, 255, 255, 0.15);
+            border-radius: 8px;
+            padding: 12px;
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            transition: transform 0.3s ease;
+        }
+
+        .info-card:hover {
+            transform: translateY(-2px);
+        }
+
+        .info-title {
+            font-size: 0.9em;
+            font-weight: bold;
+            margin-bottom: 5px;
+            text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.3);
+        }
+
+        .info-value {
+            font-size: 1.1em;
+            font-weight: bold;
+            text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.3);
+        }
+
+        .game-section {
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 12px;
+            padding: 15px;
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            flex-grow: 1;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .game-title {
+            font-size: 1.5em;
+            font-weight: bold;
+            text-align: center;
+            margin-bottom: 10px;
+            text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.3);
+        }
+
+        .game-canvas {
+            width: 100%;
+            height: 400px;
+            background: #2c3e50;
+            border-radius: 8px;
+            border: 2px solid #34495e;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .game-controls {
+            display: flex;
+            justify-content: center;
+            gap: 10px;
+            margin-top: 10px;
+        }
+
+        .game-button {
+            background: linear-gradient(45deg, #27ae60, #2ecc71);
+            color: white;
+            border: none;
+            padding: 8px 16px;
+            border-radius: 20px;
+            font-size: 14px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            box-shadow: 0 3px 10px rgba(0, 0, 0, 0.2);
+        }
+
+        .game-button:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.3);
+        }
+
+        .game-button:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        .game-over {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: rgba(231, 76, 60, 0.9);
+            color: white;
+            padding: 20px;
+            border-radius: 10px;
+            text-align: center;
+            font-size: 1.2em;
+            font-weight: bold;
+            z-index: 10;
+        }
+
+        .status-menggenggam {
+            color: #4CAF50;
+        }
+
+        .status-tidak-menggenggam {
+            color: #FF6B6B;
+        }
+
+        .tangan-kanan {
+            color: #2196F3;
+        }
+
+        .tangan-kiri {
+            color: #FF9800;
+        }
+
+        .loading {
+            text-align: center;
+            padding: 40px;
+            color: #666;
+            font-size: 1.2em;
+        }
+
+        .controls {
+            margin-top: 20px;
+            text-align: center;
+        }
+
+        button {
+            background: linear-gradient(45deg, #667eea, #764ba2);
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 25px;
+            font-size: 16px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.2);
+        }
+
+        button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 20px rgba(0, 0, 0, 0.3);
+        }
+
+        button:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        .loading-text {
+            text-align: center;
+            padding: 20px;
+            color: white;
+            font-size: 1.1em;
+        }
+
+        @media (max-width: 768px) {
+            .main-grid {
+                grid-template-columns: 1fr;
+                gap: 20px;
+            }
+            
+            h1 {
+                font-size: 2em;
+            }
+            
+            .camera-container {
+                height: 360px;
+            }
+        }
+		
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🏎️ Road Fighter using 🖐️ Hand Landmark </h1>
+        
+        <div class="main-grid">
+            <!-- Grid Kiri: Kamera -->
+            <div class="camera-section">
+                <div class="camera-container">
+                    <video id="videoElement" autoplay muted playsinline></video>
+                    <canvas id="canvasElement"></canvas>
+                </div>
+                <div class="controls">
+                    <button id="startButton">Mulai Kamera</button>
+                    <button id="stopButton" disabled>Stop Kamera</button>
+                </div>
+            </div>
+
+            <!-- Grid Kanan: Informasi & Game -->
+            <div class="info-section">
+				<div class="volume-control" style="text-align: left; margin-top: 10px;">
+    <label for="volumeSlider" style="color: white;">🔊 Volume: </label>
+    <input type="range" id="volumeSlider" min="0" max="1" step="0.1" value="0.3">
+</div>
+				    <div class="game-section">
+                    <div class="game-title">🏎️ Road Fighter</div>
+					
+                    <canvas class="game-canvas" id="gameCanvas" width="300" height="400"></canvas>
+                    <div class="game-controls">
+                        <button class="game-button" id="startGameButton">Mulai Game</button>
+                        <button class="game-button" id="pauseGameButton" disabled>Pause</button>
+                        <button class="game-button" id="resetGameButton">Reset</button>
+                    </div>
+                    <div class="loading-text" id="loadingText">Memuat aset gambar...</div>
+                </div>
+				
+                <div class="info-cards-grid">
+				
+                    <div class="info-card">
+                        <div class="info-title">🏎️ Arah Mobil</div>
+                        <div class="info-value" id="arahMobil">Lurus</div>
+                    </div>
+
+                    <div class="info-card">
+                        <div class="info-title">🏁 Skor</div>
+                        <div class="info-value" id="skorGame">0</div>
+                    </div>
+
+                    <div class="info-card">
+                        <div class="info-title">✊ Tangan Kanan</div>
+                        <div class="info-value" id="statusKanan">Belum terdeteksi</div>
+                    </div>
+
+                    <div class="info-card">
+                        <div class="info-title">✊ Tangan Kiri</div>
+                        <div class="info-value" id="statusKiri">Belum terdeteksi</div>
+                    </div>
+                </div>
+
+
+            </div>
+        </div>
+    </div>
+	<!-- Game Over Pop-up -->
+<div class="game-overlay" id="gameOverlay">
+    <div class="game-popup">
+        <h2>🏁 GAME OVER!</h2>
+        <p>Skor Anda: <span id="popupScore">0</span></p>
+        <p>Skor Tertinggi: <span id="popupMaxScore">0</span></p>
+        <button class="popup-button" id="popupOkButton">OK</button>
+    </div>
+</div>
+
+    <script>
+        class HandLandmarkDetector {
+            constructor() {
+				this.backgroundMusic = null;
+				// Tambahkan di dalam constructor() setelah variabel game lainnya
+				this.gameOverlay = null;
+				this.popupScoreEl = null;
+				this.popupMaxScoreEl = null;
+				this.popupOkButton = null;
+
+                this.videoElement = document.getElementById('videoElement');
+                this.canvasElement = document.getElementById('canvasElement');
+                this.canvasCtx = this.canvasElement.getContext('2d');
+                this.startButton = document.getElementById('startButton');
+                this.stopButton = document.getElementById('stopButton');
+                
+                this.hands = null;
+                this.camera = null;
+                this.isRunning = false;
+				
+				this.carMoveSpeed = 0.05; // Kecepatan pergerakan mobil (awalnya 0.10)
+				this.carMoveSpeedIncrement = 0.005; // Increment kecepatan setiap poin
+                
+                // Game variables
+                this.gameCanvas = document.getElementById('gameCanvas');
+                this.gameCtx = this.gameCanvas.getContext('2d');
+                this.gameRunning = false;
+                this.gamePaused = false;
+                this.score = 0;
+                this.maxScore = 0;
+                this.gameSpeed = 3;
+				this.gameSpeedIncrement = 0.5;
+				
+                
+                // Image assets
+                this.images = {};
+                this.imagesLoaded = false;
+                
+                // Enemy car types
+                this.enemyCarTypes = ['Ambulance.png',
+									'Audi.png',
+									'Black_viper.png',
+									'Mini_truck.png',
+									'Mini_van.png',
+									'Police.png',
+									'taxi.png',
+									'truck.png'
+								];
+													
+                // Game objects
+                this.playerCar = {
+                    x: 115, // Center of left lane
+                    y: 320,
+                    width: 50,
+                    height: 80,
+                    lane: 0 // 0 = left, 1 = right
+                };
+                
+                this.enemyCars = [];
+                this.roadLines = [];
+                this.lastCarSpawn = 0;
+                this.carDirection = 'lurus';
+                
+                this.initializeElements();
+                this.setupEventListeners();
+                this.loadImages();
+            }
+
+            initializeElements() {
+				this.backgroundMusic = document.getElementById('backgroundMusic');
+				this.backgroundMusic.volume = 0.3; // Set volume 30% (opsional)
+                this.arahMobilEl = document.getElementById('arahMobil');
+                this.skorGameEl = document.getElementById('skorGame');
+                this.statusKananEl = document.getElementById('statusKanan');
+                this.statusKiriEl = document.getElementById('statusKiri');
+                this.loadingTextEl = document.getElementById('loadingText');
+                
+                this.startGameButton = document.getElementById('startGameButton');
+                this.pauseGameButton = document.getElementById('pauseGameButton');
+                this.resetGameButton = document.getElementById('resetGameButton');
+				// Tambahkan di akhir method initializeElements()
+				this.gameOverlay = document.getElementById('gameOverlay');
+				this.popupScoreEl = document.getElementById('popupScore');
+				this.popupMaxScoreEl = document.getElementById('popupMaxScore');
+				this.popupOkButton = document.getElementById('popupOkButton');
+                
+                // Disable game buttons until images are loaded
+                this.startGameButton.disabled = true;
+            }
+
+            setupEventListeners() {
+                this.startButton.addEventListener('click', () => this.startDetection());
+                this.stopButton.addEventListener('click', () => this.stopDetection());
+                
+                this.startGameButton.addEventListener('click', () => this.startGame());
+                this.pauseGameButton.addEventListener('click', () => this.pauseGame());
+                this.resetGameButton.addEventListener('click', () => this.resetGame());
+				// Tambahkan di akhir method setupEventListeners()
+				this.popupOkButton.addEventListener('click', () => this.closeGameOverPopup());
+				const volumeSlider = document.getElementById('volumeSlider');
+				if (volumeSlider) {
+					volumeSlider.addEventListener('input', (e) => {
+						this.backgroundMusic.volume = e.target.value;
+					});
+				}
+            }
+			// Tambahkan method baru setelah method gameOver()
+			showGameOverPopup() {
+				this.popupScoreEl.textContent = this.score.toString();
+				this.popupMaxScoreEl.textContent = this.maxScore.toString();
+				this.gameOverlay.style.display = 'flex';
+			}
+
+			closeGameOverPopup() {
+				this.gameOverlay.style.display = 'none';
+				this.resetGame();
+			}
+
+            loadImages() {
+				const basePath = 'mobil/'; // Definisikan base path
+				const imageFiles = [
+					'Car.png', // Player car
+					...this.enemyCarTypes // Enemy cars
+				];
+				
+				let loadedCount = 0;
+				const totalImages = imageFiles.length;
+				
+				const onImageLoad = () => {
+					loadedCount++;
+					this.loadingTextEl.textContent = `Memuat aset gambar... ${loadedCount}/${totalImages}`;
+					
+					if (loadedCount === totalImages) {
+						this.imagesLoaded = true;
+						this.loadingTextEl.textContent = 'Aset gambar berhasil dimuat!';
+						this.startGameButton.disabled = false;
+						this.initializeGame();
+						
+						setTimeout(() => {
+							this.loadingTextEl.style.display = 'none';
+						}, 2000);
+					}
+				};
+				
+				const onImageError = (filename) => {
+					console.error(`Gagal memuat gambar: ${filename}`);
+					this.loadingTextEl.textContent = `Error: Gagal memuat ${filename}`;
+					this.loadingTextEl.style.color = '#ff6b6b';
+				};
+				
+				imageFiles.forEach(filename => {
+					const img = new Image();
+					img.onload = onImageLoad;
+					img.onerror = () => onImageError(filename);
+					img.src = basePath + filename; // Gabungkan base path dengan filename
+					this.images[filename] = img; // Key tetap nama file asli
+				});
+			}
+
+            initializeGame() {
+                if (!this.imagesLoaded) return;
+                
+                // Initialize road lines
+                this.roadLines = [];
+                for (let i = 0; i < 10; i++) {
+                    this.roadLines.push({
+                        x: 150,
+                        y: i * 50,
+                        width: 4,
+                        height: 30
+                    });
+                }
+                
+                this.drawGame();
+            }
+
+            startGame() {
+                if (!this.imagesLoaded) {
+                    alert('Tunggu hingga semua gambar selesai dimuat!');
+                    return;
+                }
+                
+                this.gameRunning = true;
+                this.gamePaused = false;
+                this.startGameButton.disabled = true;
+                this.pauseGameButton.disabled = false;
+				this.playBackgroundMusic();
+                this.gameLoop();
+            }
+
+            pauseGame() {
+				this.gamePaused = !this.gamePaused;
+				this.pauseGameButton.textContent = this.gamePaused ? 'Resume' : 'Pause';
+				
+				if (this.gamePaused) {
+					// Pause musik ketika game di-pause
+					this.pauseBackgroundMusic();
+				} else {
+					// Resume musik ketika game dilanjutkan
+					this.playBackgroundMusic();
+					this.gameLoop();
+				}
+			}
+
+            resetGame() {
+				this.gameRunning = false;
+				this.gamePaused = false;
+				this.score = 0;
+				this.gameSpeed = 3;
+				this.carMoveSpeed = 0.15; // RESET kecepatan pergerakan mobil
+				this.enemyCars = [];
+				this.lastCarSpawn = 0;
+				this.playerCar.x = 100;
+				this.playerCar.lane = 0;
+				
+				this.startGameButton.disabled = false;
+				this.pauseGameButton.disabled = true;
+				this.pauseGameButton.textContent = 'Pause';
+				
+				this.stopBackgroundMusic();
+				
+				this.skorGameEl.textContent = '0';
+				this.drawGame();
+			}
+
+
+            gameLoop() {
+                if (!this.gameRunning || this.gamePaused) return;
+                
+                this.updateGame();
+                this.drawGame();
+                
+                requestAnimationFrame(() => this.gameLoop());
+            }
+			
+            updateGame() {
+                // Update player car position based on hand gesture
+                this.updatePlayerCar();
+                
+                // Spawn enemy cars
+                this.spawnEnemyCars();
+                
+                // Update enemy cars
+                this.updateEnemyCars();
+                
+                // Move road lines
+                this.updateRoadLines();
+                
+                // Check collisions
+                this.checkCollisions();
+                
+                // Increase game speed over time
+                this.gameSpeed += 0.001;
+            }
+
+            updatePlayerCar() {
+				const targetX = this.playerCar.lane === 0 ? 115 : 200;
+				const diff = targetX - this.playerCar.x;
+				
+				if (Math.abs(diff) > 2) {
+					// Gunakan variabel kecepatan yang bisa berubah
+					this.playerCar.x += diff * this.carMoveSpeed;
+				}
+			}
+
+            spawnEnemyCars() {
+                const now = Date.now();
+				const spawnInterval = Math.max(2500, 3000 - (this.score * 50));
+				// 	const spawnInterval = 3000
+                if (now - this.lastCarSpawn > spawnInterval) {
+                    const lane = Math.random() < 0.5 ? 0 : 1;
+                    const carType = this.enemyCarTypes[Math.floor(Math.random() * this.enemyCarTypes.length)];
+                    
+                    this.enemyCars.push({
+                        x: lane === 0 ? 115 : 200,
+                        y: -80,
+                        width: 50,
+                        height: 80,
+                        lane: lane,
+                        passed: false,
+                        type: carType
+                    });
+                    this.lastCarSpawn = now;
+                }
+            }
+
+            updateEnemyCars() {
+				for (let i = this.enemyCars.length - 1; i >= 0; i--) {
+					const car = this.enemyCars[i];
+					car.y += this.gameSpeed;
+					
+					// Check if car is passed
+					if (!car.passed && car.y > this.playerCar.y) {
+						car.passed = true;
+						this.score++;
+						this.skorGameEl.textContent = this.score.toString();
+						
+						// TAMBAHKAN KODE INI: Tingkatkan kecepatan pergerakan mobil
+						this.carMoveSpeed += this.carMoveSpeedIncrement;
+						this.gameSpeed += this.gameSpeedIncrement;
+						//console.log(`Poin: ${this.score}, Kecepatan mobil: ${this.carMoveSpeed.toFixed(2)}`);
+					}
+					
+					// Remove cars that are off screen
+					if (car.y > 450) {
+						this.enemyCars.splice(i, 1);
+					}
+				}
+			}
+
+            updateRoadLines() {
+                for (let line of this.roadLines) {
+                    line.y += this.gameSpeed;
+                    if (line.y > 450) {
+                        line.y = -30;
+                    }
+                }
+            }
+
+            checkCollisions() {
+                for (let car of this.enemyCars) {
+                    if (this.isColliding(this.playerCar, car)) {
+                        this.gameOver();
+                        return;
+                    }
+                }
+            }
+
+            isColliding(rect1, rect2) {
+                return rect1.x < rect2.x + rect2.width -32 &&
+                       rect1.x + rect1.width-32 > rect2.x &&
+                       rect1.y < rect2.y + rect2.height-10 &&
+                       rect1.y + rect1.height-10 > rect2.y;
+            }
+
+            gameOver() {
+                this.gameRunning = false;
+                this.maxScore = Math.max(this.maxScore, this.score);
+                
+                this.startGameButton.disabled = false;
+                this.pauseGameButton.disabled = true;
+                this.pauseGameButton.textContent = 'Pause';
+				
+				// Stop musik ketika game over
+				this.stopBackgroundMusic();
+                
+                // Draw game over screen
+                this.showGameOverPopup();
+            }
+
+            drawGame() {
+                if (!this.imagesLoaded) return;
+                
+                // Clear canvas
+                this.gameCtx.fillStyle = '#2c3e50';
+                this.gameCtx.fillRect(0, 0, 300, 400);
+                
+                // Draw road
+                this.gameCtx.fillStyle = '#34495e';
+                this.gameCtx.fillRect(75, 0, 150, 400);
+                
+                // Draw road lines
+                this.gameCtx.fillStyle = '#f39c12';
+                for (let line of this.roadLines) {
+                    this.gameCtx.fillRect(line.x, line.y, line.width, line.height);
+                }
+                
+                // Draw lane dividers
+                this.gameCtx.fillStyle = '#ecf0f1';
+                this.gameCtx.fillRect(74, 0, 2, 400);
+                this.gameCtx.fillRect(224, 0, 2, 400);
+                
+                // Draw player car
+                const playerCarImg = this.images['Car.png'];
+                if (playerCarImg && playerCarImg.complete) {
+                    this.gameCtx.drawImage(
+                        playerCarImg,
+                        this.playerCar.x - 25,
+                        this.playerCar.y - 40,
+                        this.playerCar.width,
+                        this.playerCar.height
+                    );
+                } else {
+                    // Fallback to colored rectangle if image not loaded
+                    this.gameCtx.fillStyle = '#3498db';
+                    this.gameCtx.fillRect(this.playerCar.x - 25, this.playerCar.y - 40, this.playerCar.width, this.playerCar.height);
+                }
+                
+                // Draw enemy cars
+                for (let car of this.enemyCars) {
+                    const enemyCarImg = this.images[car.type];
+                    if (enemyCarImg && enemyCarImg.complete) {
+                        this.gameCtx.drawImage(
+                            enemyCarImg,
+                            car.x - 25,
+                            car.y - 40,
+                            car.width,
+                            car.height
+                        );
+                    } else {
+                        // Fallback to colored rectangle if image not loaded
+                        this.gameCtx.fillStyle = '#e74c3c';
+                        this.gameCtx.fillRect(car.x - 25, car.y - 40, car.width, car.height);
+                    }
+                }
+            }
+
+            drawGameOver() {
+                this.gameCtx.fillStyle = 'rgba(231, 76, 60, 0.9)';
+                this.gameCtx.fillRect(50, 150, 200, 100);
+                
+                this.gameCtx.fillStyle = 'white';
+                this.gameCtx.font = 'bold 20px Arial';
+                this.gameCtx.textAlign = 'center';
+                this.gameCtx.fillText('GAME OVER', 150, 180);
+                
+                this.gameCtx.font = '16px Arial';
+                this.gameCtx.fillText(`Skor: ${this.score}`, 150, 200);
+                this.gameCtx.fillText(`Max: ${this.maxScore}`, 150, 220);
+                this.gameCtx.fillText('Klik Reset untuk main lagi', 150, 240);
+            }
+
+            async startDetection() {
+                try {
+                    console.log('Memulai inisialisasi kamera...');
+                    
+                    // Cek apakah MediaPipe sudah tersedia
+                    if (typeof Hands === 'undefined') {
+                        throw new Error('MediaPipe Hands tidak tersedia');
+                    }
+
+                    // Inisialisasi MediaPipe Hands
+                    this.hands = new Hands({
+                        locateFile: (file) => {
+                            return `https://cdn.jsdelivr.net/npm/@mediapipe/hands/${file}`;
+                        }
+                    });
+
+                    this.hands.setOptions({
+                        maxNumHands: 2,
+                        modelComplexity: 1,
+                        minDetectionConfidence: 0.5,
+                        minTrackingConfidence: 0.5
+                    });
+
+                    this.hands.onResults((results) => this.onResults(results));
+
+                    // Cek apakah Camera class tersedia
+                    if (typeof Camera === 'undefined') {
+                        // Fallback ke getUserMedia jika Camera class tidak tersedia
+                        await this.initializeBasicCamera();
+                    } else {
+                        // Inisialisasi kamera menggunakan MediaPipe Camera
+                        this.camera = new Camera(this.videoElement, {
+                            onFrame: async () => {
+                                if (this.hands && this.isRunning) {
+                                    await this.hands.send({image: this.videoElement});
+                                }
+                            },
+                            width: 640,
+                            height: 480
+                        });
+                        await this.camera.start();
+                    }
+                    
+                    this.isRunning = true;
+                    this.startButton.disabled = true;
+                    this.stopButton.disabled = false;
+                    
+                    console.log('Kamera berhasil dimulai');
+                } catch (error) {
+                    console.error('Error starting camera:', error);
+                    alert(`Gagal memulai kamera: ${error.message}. Pastikan browser memiliki akses ke kamera dan MediaPipe dapat dimuat.`);
+                    
+                    // Reset button states
+                    this.startButton.disabled = false;
+                    this.stopButton.disabled = true;
+                }
+            }
+
+            async initializeBasicCamera() {
+                try {
+                    const stream = await navigator.mediaDevices.getUserMedia({
+                        video: { 
+                            width: 640, 
+                            height: 480,
+                            facingMode: 'user'
+                        }
+                    });
+                    
+                    this.videoElement.srcObject = stream;
+                    this.videoElement.play();
+                    
+                    // Setup manual frame processing
+                    this.setupFrameProcessing();
+                    
+                } catch (error) {
+                    throw new Error(`Tidak dapat mengakses kamera: ${error.message}`);
+                }
+            }
+
+            setupFrameProcessing() {
+                const processFrame = async () => {
+                    if (this.hands && this.isRunning && this.videoElement.readyState === 4) {
+                        try {
+                            await this.hands.send({image: this.videoElement});
+                        } catch (error) {
+                            console.error('Error processing frame:', error);
+                        }
+                    }
+                    
+                    if (this.isRunning) {
+                        requestAnimationFrame(processFrame);
+                    }
+                };
+                
+                // Start processing after video is ready
+                this.videoElement.addEventListener('loadeddata', () => {
+                    processFrame();
+                });
+            }
+
+            stopDetection() {
+                try {
+                    if (this.camera && this.camera.stop) {
+                        this.camera.stop();
+                    }
+                    
+                    // Stop getUserMedia stream if available
+                    if (this.videoElement.srcObject) {
+                        const tracks = this.videoElement.srcObject.getTracks();
+                        tracks.forEach(track => track.stop());
+                        this.videoElement.srcObject = null;
+                    }
+                    
+                    this.isRunning = false;
+                    this.startButton.disabled = false;
+                    this.stopButton.disabled = true;
+                    
+                    // Reset display
+                    this.resetDisplay();
+                    
+                    console.log('Kamera dihentikan');
+                } catch (error) {
+                    console.error('Error stopping camera:', error);
+                }
+            }
+			// Tambahkan method baru setelah method closeGameOverPopup()
+			playBackgroundMusic() {
+				if (this.backgroundMusic) {
+					this.backgroundMusic.currentTime = 0; // Mulai dari awal
+					this.backgroundMusic.play().catch(error => {
+						console.log('Autoplay prevented:', error);
+						// Browser modern memblokir autoplay, user harus interact dulu
+					});
+				}
+			}
+
+			pauseBackgroundMusic() {
+				if (this.backgroundMusic) {
+					this.backgroundMusic.pause();
+				}
+			}
+
+			stopBackgroundMusic() {
+				if (this.backgroundMusic) {
+					this.backgroundMusic.pause();
+					this.backgroundMusic.currentTime = 0; // Reset ke awal
+				}
+			}
+            onResults(results) {
+                // Clear canvas
+                this.canvasCtx.save();
+                this.canvasCtx.clearRect(0, 0, this.canvasElement.width, this.canvasElement.height);
+                
+                // Set canvas size
+                this.canvasElement.width = this.videoElement.videoWidth;
+                this.canvasElement.height = this.videoElement.videoHeight;
+                
+                // Draw image
+                //this.canvasCtx.drawImage(results.image, 0, 0, this.canvasElement.width, this.canvasElement.height);
+
+                if (results.multiHandLandmarks && results.multiHandedness) {
+                    this.processHandResults(results);
+                } else {
+                    this.resetDisplay();
+                }
+
+                this.canvasCtx.restore();
+            }
+			getMirroredCoordinates(landmark) {
+				return {
+					x: (1 - landmark.x) * this.canvasElement.width,
+					y: landmark.y * this.canvasElement.height
+				};
+			}
+			processHandResults(results) {
+                const handData = [];
+                
+                // Process each detected hand
+                for (let i = 0; i < results.multiHandLandmarks.length; i++) {
+                    const landmarks = results.multiHandLandmarks[i];
+                    const handedness = results.multiHandedness[i];
+                    
+                    // Determine hand type (Left/Right)
+                    const isRightHand = handedness.label === 'Right';
+                    
+                    // Calculate hand position (using wrist landmark)
+                    const wristY = landmarks[0].y;
+                    
+                    // Check if hand is gripping
+                    const isGripping = this.isHandGripping(landmarks);
+                    
+                    handData.push({
+                        landmarks: landmarks,
+                        isRightHand: isRightHand,
+                        wristY: wristY,
+                        isGripping: isGripping
+                    });
+                    
+                    // Draw hand landmarks
+                    this.drawHandLandmarks(landmarks, isRightHand);
+                }
+                
+                // Update display
+                this.updateDisplay(handData);
+            }
+
+            isHandGripping(landmarks) {
+                // Check finger curl based on landmark positions
+                const fingerTips = [8, 12, 16, 20]; // Index, Middle, Ring, Pinky tips
+                const fingerPips = [6, 10, 14, 18]; // PIP joints
+                
+                let curledFingers = 0;
+                
+                // Check each finger (except thumb)
+                for (let i = 0; i < fingerTips.length; i++) {
+                    const tipY = landmarks[fingerTips[i]].y;
+                    const pipY = landmarks[fingerPips[i]].y;
+                    
+                    // If tip is below PIP joint, finger is curled
+                    if (tipY > pipY) {
+                        curledFingers++;
+                    }
+                }
+                
+                // Check thumb separately
+                const thumbTip = landmarks[4];
+                const thumbMcp = landmarks[2];
+                const thumbDistance = Math.abs(thumbTip.x - thumbMcp.x);
+                
+                // If thumb is close to palm, count as curled
+                if (thumbDistance < 0.05) {
+                    curledFingers++;
+                }
+                
+                // Hand is gripping if 3 or more fingers are curled
+                return curledFingers >= 3;
+            }
+
+            drawHandLandmarks(landmarks, isRightHand) {
+                // Draw connections
+                const connections = [
+                    [0, 1], [1, 2], [2, 3], [3, 4], // Thumb
+                    [0, 5], [5, 6], [6, 7], [7, 8], // Index
+                    [0, 9], [9, 10], [10, 11], [11, 12], // Middle
+                    [0, 13], [13, 14], [14, 15], [15, 16], // Ring
+                    [0, 17], [17, 18], [18, 19], [19, 20], // Pinky
+                    [5, 9], [9, 13], [13, 17] // Palm
+                ];
+                
+                // Draw connections
+                this.canvasCtx.strokeStyle = isRightHand ? '#2196F3' : '#FF9800';
+                this.canvasCtx.lineWidth = 2;
+                
+                connections.forEach(([start, end]) => {
+					const startPoint = this.getMirroredCoordinates(landmarks[start]);
+					const endPoint = this.getMirroredCoordinates(landmarks[end]);
+					
+					this.canvasCtx.beginPath();
+					this.canvasCtx.moveTo(startPoint.x, startPoint.y);
+					this.canvasCtx.lineTo(endPoint.x, endPoint.y);
+					this.canvasCtx.stroke();
+				});
+			
+				landmarks.forEach((landmark, index) => {
+						const coords = this.getMirroredCoordinates(landmark);
+						
+						this.canvasCtx.beginPath();
+						this.canvasCtx.arc(coords.x, coords.y, 5, 0, 2 * Math.PI);
+						this.canvasCtx.fillStyle = isRightHand ? '#2196F3' : '#FF9800';
+						this.canvasCtx.fill();
+						
+						// Draw landmark number
+						this.canvasCtx.fillStyle = 'white';
+						this.canvasCtx.font = '10px Arial';
+						this.canvasCtx.textAlign = 'center';
+						this.canvasCtx.fillText(index.toString(), coords.x, coords.y + 3);
+					});
+			}
+
+            
+			updateDisplay(handData) {
+				if (handData.length === 0) {
+					this.resetDisplay();
+					return;
+				}
+				
+				// Find hand positions
+				let rightHand = null;
+				let leftHand = null;
+				
+				for (let hand of handData) {
+					if (hand.isRightHand) {
+						rightHand = hand;
+					} else {
+						leftHand = hand;
+					}
+				}
+				
+				// Determine car direction based on hand positions
+				let direction = 'lurus';
+				
+				// KONDISI BARU: Cek apakah kedua tangan menggenggam
+				const bothHandsGripping = rightHand && leftHand && rightHand.isGripping && leftHand.isGripping;
+				
+				if (bothHandsGripping) {
+					// Hanya bisa belok jika kedua tangan menggenggam
+					if (rightHand.wristY < leftHand.wristY) {
+						direction = 'kanan';
+						this.playerCar.lane = 1;
+					} else if (leftHand.wristY < rightHand.wristY) {
+						direction = 'kiri';
+						this.playerCar.lane = 0;
+					}
+				} else {
+					// Jika tidak kedua tangan menggenggam, mobil tetap lurus
+					direction = 'lurus';
+					// Tidak mengubah lane, mobil tetap di posisi saat ini
+				}
+				
+				this.carDirection = direction;
+				
+				// Update car direction display dengan indikator status
+				let directionText = direction.charAt(0).toUpperCase() + direction.slice(1);
+				if (!bothHandsGripping && (rightHand || leftHand)) {
+					directionText += ' (Genggam kedua tangan!)';
+				}
+				
+				this.arahMobilEl.textContent = directionText;
+				// Tambahkan class warning jika kondisi tidak terpenuhi
+				if (!bothHandsGripping && (rightHand || leftHand)) {
+					this.arahMobilEl.className = `info-value warning-text`;
+				} else {
+					this.arahMobilEl.className = `info-value ${direction === 'kanan' ? 'tangan-kanan' : direction === 'kiri' ? 'tangan-kiri' : ''}`;
+				}
+				//this.arahMobilEl.className = `info-value ${direction === 'kanan' ? 'tangan-kanan' : direction === 'kiri' ? 'tangan-kiri' : ''}`;
+				
+				// Update hand grip status
+				let rightHandStatus = rightHand ? (rightHand.isGripping ? 'Menggenggam' : 'Tidak menggenggam') : 'Tidak terdeteksi';
+				let leftHandStatus = leftHand ? (leftHand.isGripping ? 'Menggenggam' : 'Tidak menggenggam') : 'Tidak terdeteksi';
+				
+				this.statusKananEl.textContent = rightHandStatus;
+				this.statusKiriEl.textContent = leftHandStatus;
+				
+				if (rightHand) {
+					this.statusKananEl.className = `info-value ${rightHand.isGripping ? 'status-menggenggam' : 'status-tidak-menggenggam'}`;
+				} else {
+					this.statusKananEl.className = 'info-value';
+				}
+				
+				if (leftHand) {
+					this.statusKiriEl.className = `info-value ${leftHand.isGripping ? 'status-menggenggam' : 'status-tidak-menggenggam'}`;
+				} else {
+					this.statusKiriEl.className = 'info-value';
+				}
+			}
+            resetDisplay() {
+                this.arahMobilEl.textContent = 'Lurus';
+                this.arahMobilEl.className = 'info-value';
+                
+                this.statusKananEl.textContent = 'Belum terdeteksi';
+                this.statusKananEl.className = 'info-value';
+                
+                this.statusKiriEl.textContent = 'Belum terdeteksi';
+                this.statusKiriEl.className = 'info-value';
+                
+                this.carDirection = 'lurus';
+            }
+        }
+
+        // Initialize the application
+        document.addEventListener('DOMContentLoaded', () => {
+            new HandLandmarkDetector();
+        });
+    </script>
+</body>
+</html>
